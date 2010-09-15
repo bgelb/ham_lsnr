@@ -19,7 +19,7 @@ my $data_source_user = "doitreg";
 my $data_source_pass = "doitregrules";
 
 # Port to listen for incoming TCP connections
-my $incoming_tcp_port = 7890
+my $incoming_tcp_port = 7890;
 
 # Event ID (2941 = MCM)
 my $sub_event_id = 2941;
