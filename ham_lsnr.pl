@@ -50,7 +50,7 @@ use DBI;
 use Switch;
 
 my $data_source =
-  "dbi:Oracle:host=iad1-srv01.championchipus.com;sid=ora8;port=1521";
+  "dbi:Oracle:host=127.0.0.1;sid=ora8;port=1521";
 
 # changed the sub_event_id to match new system (brad)
 my $sub_event_id = 2941;
