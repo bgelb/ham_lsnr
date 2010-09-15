@@ -1,59 +1,32 @@
 #!/usr/bin/perl -w
+
+#
+# ham_lsnr.pl
+#
+# Accepts TCP connections and provides interactive interface to
+# MCM medical tracker database
+#
+
 use strict;
 
-# ham_lsnr7.pl
-#
-# ChangeLog:
-# V6, August 2, 2006, Ben Gelb:
-# When SIG{CHLD} handler is called, the blocking
-# socket->accept() is interrupted.
-# Since there isn't actually a new incoming connection, this
-# breaks the main loop
-# and kills the parent process. This was causing the
-# crashing and hangups last year
-# on race day. The main loop has been changed to make sure that socket->accept()
-
-# actually returns a valid socket. The other major change
-# was to pull out all of the
-# aid station, disp, diagnosis codes into definitions at the
-# top of the file for easy
-# modification without touching the main body of the code.
-
-# V7, October 19, 2007, Ben Gelb:
-# - Updated all disp/diag codes
-# - Added prompt for transport barcode
-# - Added listrunner and listaid commands
-
-# TODO:
-# - Implement SQL calls (currently commented out/out of date)
-# - Actually do something with the $other_destination data
-#   (stick in a comment field in db somwhere) and transport barcode
-# - Implement SQL calls and prints for listrunner and listaid commands
-
-# V7.1, October 22, 2007, Brad Chick:
-# - Updated db connection to connect to Oracle (8.1.7.4)
-# - changed event_id to be sub_event_id (hard-coded to be 2941)
-# - Changed SQL to reflect new schema
-# - Notable change: bib is no longer primary key, but we moved to an internal id - athlete_id, assigned
-#   by a trigger in the main athlete table: medical_athlete
-# - Dropped the schema (medical.sql) into ben's home dir for reference.
-
-# V7.2, October 23, 2008, Ben Gelb:
-# - update valid aid stations list
-
-# V7.3, October 10, 2009, Ben Gelb:
-# - update valid aid stations list
-
 use IO::Socket;
-
 use DBI;
 use Switch;
 
-my $data_source =
-  "dbi:Oracle:host=127.0.0.1;sid=ora8;port=1521";
+# Database connection parameters
+my $data_source      = "dbi:Oracle:host=127.0.0.1;sid=ora8;port=1521";
+my $data_source_user = "doitreg";
+my $data_source_pass = "doitregrules";
 
-# changed the sub_event_id to match new system (brad)
+# Port to listen for incoming TCP connections
+my $incoming_tcp_port = 7890
+
+# Event ID (2941 = MCM)
 my $sub_event_id = 2941;
+
+# Hardcode "other" disposition code, so we can prompt for extra info
+# TODO: encode this in database somehow
+my $transport_to_other_disposition_code = "TOF";
 
 open( ERROR, ">/tmp/temp.$$.txt" ) or die "Unable to open: $!";
 
@@ -61,11 +34,9 @@ BEGIN {
     $SIG{__DIE__} = sub { print ERROR @_; };
 }
 
-my $transport_to_other_disposition_code = "TOF";
-
 $SIG{CHLD} = sub { wait() };
 my $main_sock = new IO::Socket::INET(
-    LocalPort => 7890,
+    LocalPort => $incoming_tcp_port,
     Listen    => 50,
     Proto     => 'tcp',
     Reuse     => 1,
@@ -84,7 +55,7 @@ while (1) {
 
         # Child process
 
-        my $dbh = DBI->connect( $data_source, "doitreg", "doitregrules" )
+        my $dbh = DBI->connect( $data_source, $data_source_user, $data_source_pass )
           or die "ERR: Couldn't open connection: " . $DBI::errstr . "\n";
 
         # following hash is unnecessary; used for testing
