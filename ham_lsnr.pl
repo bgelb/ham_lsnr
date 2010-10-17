@@ -203,11 +203,6 @@ while (1) {
 
                 # check time-in/out:
                 #
-                my $in_out = undef;
-                if ( $update_type eq 'checkin' ) {
-                    $in_out = " In ";
-                }
-                else { $in_out = " Out "; }
                 my $inhours    = undef;
                 my $inminutes  = undef;
                 my $outhours   = undef;
