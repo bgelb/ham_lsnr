@@ -58,19 +58,6 @@ while (1) {
         my $dbh = DBI->connect( $data_source, $data_source_user, $data_source_pass )
           or die "ERR: Couldn't open connection: " . $DBI::errstr . "\n";
 
-        # following hash is unnecessary; used for testing
-        my %valid_aid_stations = (
-            '1'  => 'AS 1/2',
-            '3'  => 'AS 3/5',
-            '4'  => 'AS 4',
-            '6'  => 'AS 6',
-            '7'  => 'AS 7',
-            '8'  => 'AS 8/9',
-            '10'  => 'AS 10',
-            '20' => 'Medical Alpha',
-            '30' => 'Medical Bravo'
-        );
-
      # location_ids
      # =====================
      # drop all the location_id values into hash of arrays with the ham input as
