@@ -90,8 +90,6 @@ while (1) {
         }
         $sth->finish;
 
-        my ( $day, $month, $year ) = (localtime)[ 3, 4, 5 ];
-
        # valid_disposition_codes
        # =====================
        # the values in the following hashes are now used...
