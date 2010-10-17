@@ -35,6 +35,11 @@ BEGIN {
 }
 
 $SIG{CHLD} = sub { wait() };
+
+sub is_time_valid {
+	return ($_[0] =~ m/^((0?[0-9])|(1[0-9])|(2[0-3]))[0-5][0-9]$/);
+}
+
 my $main_sock = new IO::Socket::INET(
     LocalPort => $incoming_tcp_port,
     Listen    => 50,
@@ -201,51 +206,17 @@ while (1) {
 
                 # check time-in/out:
                 #
-                my $inhours    = undef;
-                my $inminutes  = undef;
-                my $outhours   = undef;
-                my $outminutes = undef;
                 if ( $update_type eq 'checkin'
                     or ( $update_type eq 'checkout' and length $a[1] > 0 ) )
                 {
-                    if (   length $a[1] < 3
-                        or $a[1] < 0
-                        or $a[1] > 2359 )
-                    {
-                        print $new_sock " ERROR: Invalid Time In !\n->";
-                        next;
-                    }
-                    if ( length $a[1] == 3 ) {
-                        $a[1] = "0" . $a[1];
-                    }
-                    $inhours   = substr( $a[1], 0, 2 );
-                    $inminutes = substr( $a[1], 2, 2 );
-                    if (   $inhours < 0
-                        or $inhours > 23
-                        or $inminutes < 0
-                        or $inminutes > 59 )
+                    if (!(&is_time_valid($a[1]))
                     {
                         print $new_sock " ERROR: Invalid Time In !\n->";
                         next;
                     }
                 }
                 if ( $update_type eq 'checkout' ) {
-                    if (   length $a[2] < 3
-                        or $a[2] < 0
-                        or $a[2] > 2359 )
-                    {
-                        print $new_sock " ERROR: Invalid Time Out !\n->";
-                        next;
-                    }
-                    if ( length $a[2] == 3 ) {
-                        $a[2] = "0" . $a[2];
-                    }
-                    $outhours   = substr( $a[2], 0, 2 );
-                    $outminutes = substr( $a[2], 2, 2 );
-                    if (   $outhours < 0
-                        or $outhours > 23
-                        or $outminutes < 0
-                        or $outminutes > 59 )
+                    if (!(&is_time_valid($a[2]))
                     {
                         print $new_sock " ERROR: Invalid Time Out !\n->";
                         next;
