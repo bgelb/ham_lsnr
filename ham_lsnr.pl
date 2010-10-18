@@ -63,20 +63,20 @@ while (1) {
         my $dbh = DBI->connect( $data_source, $data_source_user, $data_source_pass )
           or die "ERR: Couldn't open connection: " . $DBI::errstr . "\n";
 
-     # location_ids
+     # valid_location_ids
      # =====================
      # drop all the location_id values into hash of arrays with the ham input as
      # the key
-        my %location_ids = ();
+        my %valid_location_ids = ();
         my $sth =
           $dbh->prepare(
-"SELECT ham_input, location_id, location_code FROM medical_location where sub_event_id = $sub_event_id"
+"SELECT ham_input, location_id, location_code, prompt_for_more_info_p FROM medical_location where sub_event_id = $sub_event_id"
           ) || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
-            $location_ids{ $row[0] } = [ $row[1], $row[2] ];
+            $valid_location_ids{ $row[0] } = [ $row[1], $row[2] ];
 
-#print "................$location_ids{$row[0]}[0] ====== $location_ids{$row[0]}[1]\n";
+#print "................$valid_location_ids{$row[0]}[0] ====== $valid_location_ids{$row[0]}[1]\n";
         }
         $sth->finish;
 
@@ -124,7 +124,7 @@ while (1) {
                 # Ask what aid station they are at
                 $station = $buf;
 
-                if ( exists( $valid_aid_stations{$station} ) ) {
+                if ( exists( $valid_location_ids{$station} ) ) {
                     $got_good_station = "t";
                     print $new_sock "Data OK.\n-> ";
                 }
@@ -158,7 +158,7 @@ while (1) {
                     ## 'LA' command followed by number gets aid station status
                     ## 'LR' command gets runner status
                     if ( uc $a[0] eq 'LA' ) {
-                        if ( !exists( $valid_aid_stations{ $a[1] } ) ) {
+                        if ( !exists( $valid_location_ids{ $a[1] } ) ) {
                             print $new_sock "ERROR: Invalid Aid Station!\n->";
                             next;
                         }
@@ -209,14 +209,14 @@ while (1) {
                 if ( $update_type eq 'checkin'
                     or ( $update_type eq 'checkout' and length $a[1] > 0 ) )
                 {
-                    if (!(&is_time_valid($a[1]))
+                    if (!(&is_time_valid($a[1])))
                     {
                         print $new_sock " ERROR: Invalid Time In !\n->";
                         next;
                     }
                 }
                 if ( $update_type eq 'checkout' ) {
-                    if (!(&is_time_valid($a[2]))
+                    if (!(&is_time_valid($a[2])))
                     {
                         print $new_sock " ERROR: Invalid Time Out !\n->";
                         next;
@@ -276,7 +276,7 @@ while (1) {
                 }
                 my ( $athlete_id, $first_names );
                 my $visit_id;
-                my $locale = $location_ids{$station}[0];
+                my $locale = $valid_location_ids{$station}[0];
 
                 # print "locale-------------------> $locale\n";
                 if ( $update_type eq 'checkin' or $update_type eq 'checkout' ) {
