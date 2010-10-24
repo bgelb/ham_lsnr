@@ -63,10 +63,10 @@ while (1) {
         my $dbh = DBI->connect( $data_source, $data_source_user, $data_source_pass )
           or die "ERR: Couldn't open connection: " . $DBI::errstr . "\n";
 
-     # valid_location_ids
-     # =====================
-     # drop all the location_id values into hash of arrays with the ham input as
-     # the key
+        # valid_location_ids
+        # =====================
+        # drop all the location_id values into hash of arrays with the ham input as
+        # the key
         my %valid_location_ids = ();
         my $sth =
           $dbh->prepare(
@@ -93,11 +93,11 @@ while (1) {
         }
         $sth->finish;
 
-       # valid_disposition_codes
-       # =====================
-       # the values in the following hashes are now used...
-       # the key is the ham_input, the value is the dispostion_id needed for the
-       # table: medical_visit
+        # valid_disposition_codes
+        # =====================
+        # the values in the following hashes are now used...
+        # the key is the ham_input, the value is the dispostion_id needed for the
+        # table: medical_visit
         my %valid_disposition_codes = ();
         $sth =
           $dbh->prepare(
@@ -133,10 +133,10 @@ while (1) {
             }
             else {
 
- #Patient Check-In:
- # Runner number, time in <ENTER>
- #Patient Check-Out:
- # Runner number, time in (opt), time out, disposition, diag1, diag2,... <ENTER>
+                #Patient Check-In:
+                # Runner number, time in <ENTER>
+                #Patient Check-Out:
+                # Runner number, time in (opt), time out, disposition, diag1, diag2,... <ENTER>
                 if (   uc $buf eq "Q"
                     or uc $buf eq "QUIT"
                     or uc $buf eq "B"
@@ -222,7 +222,6 @@ while (1) {
                 }
                 my $disposition_id = undef;
 
-                my $transport_barcode = "";
                 my $other_destination = "";
                 if ( $update_type eq 'checkout' ) {
 
@@ -286,9 +285,6 @@ while (1) {
                     my $num_records = 0;
                     while ( $sth->fetch ) {
                         $num_records++;
-
-                        #FOR DEBUGGING ONLY(brad);
-                        #print "name => $first_names, ath_id => $athlete_id\n";
                     }
                     if ( $num_records == 0 ) {
                         print $new_sock " ERROR: Invalid Runner Number !\n->";
@@ -318,10 +314,8 @@ while (1) {
                 my $notes = "";
                 if ( $update_type eq 'checkin' ) {
 
-                    if ( $transport_barcode || $other_destination ) {
-                        #$notes = "transport barcode: $transport_barcode";
-                        $notes = "";
-			$notes .= ("other destination: $other_destination") if($other_destination);
+                    if ( $other_destination ) {
+						$notes = ("other destination: $other_destination") if($other_destination);
                     }
                     my $sth3 = $dbh->prepare(
                         "insert into medical_visit (visit_id,
@@ -338,24 +332,20 @@ while (1) {
                     );
                     $sth3->execute
                       or die "Couldn't execute statement: " . $sth3->errstr;
-
-                    #$numrows = $dbh->do( $insert_sql );
-                    #$numrows = 1;
-
                 }
                 elsif ( $update_type eq 'checkout' ) {
 
-# check-in is implied, checkin time is in the 3rd position of array of inputs
-# must do an insert for each of the codes provided
-#
-# input string: bib number, [check in time], check out time, disposition code, diagnosis  code 1,diagnosis code 2, diagnosis code 3, ...
-#
-# new schema requires to update the medical_visit record,
-# then, for each diagnosis code to insert a record into the mapping table
-#
-                    if ( $transport_barcode || $other_destination ) {
-                        $notes = "transport barcode: $transport_barcode";
-			$notes .= ("\nother destination: $other_destination") if($other_destination);
+                    # check-in is implied, checkin time is in the 3rd position of array of inputs
+                    # must do an insert for each of the codes provided
+                    #
+                    # input string: bib number, [check in time], check out time, disposition code,
+					# diagnosis code 1,diagnosis code 2, diagnosis code 3, ...
+                    #
+                    # new schema requires to update the medical_visit record,
+                    # then, for each diagnosis code to insert a record into the mapping table
+                    #
+                    if ( $other_destination ) {
+						$notes = ("\nother destination: $other_destination") if($other_destination);
                     }
                     my $primary_insert_sql =
 "insert into medical_visit (visit_id, athlete_id, location_id, checkout_time, disposition_id, record_timestamp";
@@ -372,7 +362,6 @@ while (1) {
                     $primary_insert_sql .= ",'$notes' " if ($notes);
                     $primary_insert_sql .= ")";
 
-                    #$sth->bind_param_inout(":id", \my $visit_id, 99999);
                     $dbh->do($primary_insert_sql);
 
                     my $n = 1;
