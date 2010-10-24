@@ -60,6 +60,20 @@ sub get_athlete_id { # dbh, bib, athlete_id, first_names, err_str
     return 1;
 }
 
+sub get_next_visit_id { # dbh
+    # grab the next sequence id for insertions
+    # should have been a trigger on primary key, but gave up
+    # cuz i couldn't figure out how to get the value out
+    my $sth;
+    my $visit_id;
+
+    $sth = $_[0]->prepare("SELECT medial_visit_sequence.nextval as visit_id from dual");
+    $sth->bind_columns( undef, \$visit_id );
+    $sth->execute;
+    while ( $sth->fetch ) {}
+    return $visit_id;
+}
+
 my $main_sock = new IO::Socket::INET(
     LocalPort => $incoming_tcp_port,
     Listen    => 50,
@@ -300,17 +314,7 @@ while (1) {
                         next;
                     }
 
-                    # grab the next sequence id for insertions
-                    # should have been a trigger on primary key, but gave up
-                    # cuz i couldn't figure out how to get the value out
-                    my $sth2 =
-                      $dbh->prepare("SELECT medial_visit_sequence.nextval as visit_id from dual");
-                    $sth2->bind_columns( undef, \$visit_id );
-                    $sth2->execute;
-                    while ( $sth2->fetch ) {
-                    }
-                    $sth2->finish;
-
+                    $visit_id = &get_next_visit_id($dbh);
                 }
                 my $notes = "";
                 if ( $update_type eq 'checkin' ) {
