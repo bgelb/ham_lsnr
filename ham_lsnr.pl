@@ -75,8 +75,6 @@ while (1) {
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
             $valid_location_ids{ $row[0] } = [ $row[1], $row[2] ];
-
-#print "................$valid_location_ids{$row[0]}[0] ====== $valid_location_ids{$row[0]}[1]\n";
         }
         $sth->finish;
 
@@ -246,14 +244,9 @@ while (1) {
                         print $new_sock " Other Destination:->";
                         $other_destination = <$new_sock>;
                     }
-                    #if ( length $Ud == 3 ) {
-                    #    print $new_sock " Transport Barcode:->";
-                    #    $transport_barcode = <$new_sock>;
-                    #}
                     $disposition_id = $valid_disposition_codes{$Ud};
                     my $i = 1;
 
-                    #print $new_sock " num_diag_codes: $num_diag_codes \n->";
                     my $bad_diag_code = "f";
                     while ( $i <= $num_diag_codes ) {
                         $this_diag_code = $i + 3;
@@ -278,7 +271,6 @@ while (1) {
                 my $visit_id;
                 my $locale = $valid_location_ids{$station}[0];
 
-                # print "locale-------------------> $locale\n";
                 if ( $update_type eq 'checkin' or $update_type eq 'checkout' ) {
 
                     # check runner bib: is it in the db?
@@ -395,14 +387,7 @@ while (1) {
                         $insert_sql =
 "insert into medical_visit_to_diagnosis_map (visit_id, diagnosis_id) values ($visit_id, $diagnosis_id)";
 
-                        my $numrows = $dbh->do( $insert_sql, undef );
-
-                        #$numrows = 1;
-
-                        #FOR DEBUGGING ONLY (bgelb)
-                        if ( !$numrows ) {
-                            die "Failed to insert: " . $dbh->errstr . "\n-> ";
-                        }
+                        $dbh->do( $insert_sql, undef );
                     }
                 }
                 print $new_sock "Data OK. <$first_names>\n-> ";
