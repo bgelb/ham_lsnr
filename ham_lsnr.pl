@@ -206,7 +206,7 @@ while (1) {
                     }
                     print $new_sock "\n$count bib(s) checked in.\n";
                 }
-                elsif(uc $cmd eq "EC") {
+                elsif(uc $cmd eq "RC") {
                     my @comment_vec = split ',', $args, 2;
                     $comment_vec[0] =~ s/\s//g;
                     my $err_str;
