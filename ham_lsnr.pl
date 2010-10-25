@@ -33,7 +33,7 @@ sub is_time_valid {
     return ($_[0] =~ m/^((0?[0-9])|(1[0-9])|(2[0-3]))[0-5][0-9]$/);
 }
 
-sub get_athlete_id { # dbh, bib, athlete_id, first_names, err_str
+sub get_athlete_id { # dbh, bib, athlete_id, first_name, err_str
     my $sth;
     my $num_records;
 
@@ -190,6 +190,25 @@ while (1) {
                 elsif(uc $cmd eq "LA") {
                 }
                 elsif(uc $cmd eq "EC") {
+                    my @comment_vec = split ',', $args, 2;
+                    $comment_vec[0] =~ s/\s//g;
+                    my $err_str;
+                    my $athlete_id;
+                    my $first_name;
+                    my $visit_id;
+
+                    if(!&get_athlete_id($dbh, $comment_vec[0], $athlete_id, $first_name, $err_str)) {
+                        print $new_sock " ERROR: $err_str\n->";
+                        next;
+                    }
+
+                    $visit_id = &get_next_visit_id($dbh);
+                    my $sth = $dbh->prepare("insert into medical_visit (visit_id, athlete_id, location_id, notes) values (?,?,?,?)");
+                    if(!$sth->execute($visit_id, $athlete_id, $valid_location_ids{$station}[0], $comment_vec[1])) {
+                      print $new_sock " ERROR: Database insert failed.\n->";
+                      next;
+                    }
+                    print $new_sock "Data OK. <$first_name>\n";
                 }
                 else {
                     print $new_sock " ERROR: Invalid input!\n";
@@ -287,7 +306,7 @@ while (1) {
                         next;
                     }
                 }
-                my ( $athlete_id, $first_names );
+                my ( $athlete_id, $first_name );
                 my $visit_id;
                 my $locale = $valid_location_ids{$station}[0];
 
@@ -297,7 +316,7 @@ while (1) {
                     #
                     my $err_str;
 
-                    if(!&get_athlete_id($dbh, $a[0], $athlete_id, $first_names, $err_str)) {
+                    if(!&get_athlete_id($dbh, $a[0], $athlete_id, $first_name, $err_str)) {
                         print $new_sock " ERROR: $err_str\n->";
                         next;
                     }
@@ -318,7 +337,7 @@ while (1) {
                           $athlete_id,
                           $locale,
                           to_date(
-                              '2007.10.28 $a[1]',
+                              concat(to_char(sysdate, 'YYYY.MM.DD'),' $a[1]'),
                               'yyyy.mm.dd HH24MI'
                           ), '$notes'
                       )"
@@ -345,7 +364,7 @@ while (1) {
                         $primary_insert_sql .= ", checkin_time";
                     }
                     $primary_insert_sql .= ", notes" if ($notes);
-                    $primary_insert_sql .= ") values ($visit_id, '$athlete_id','$locale',to_date('2007.10.28 $a[2]','yyyy.mm.dd HH24MI'), '$disposition_id', sysdate";
+                    $primary_insert_sql .= ") values ($visit_id, '$athlete_id','$locale',to_date(concat(to_char(sysdate, 'YYYY.MM.DD'),' $a[2]'),'yyyy.mm.dd HH24MI'), '$disposition_id', sysdate";
                     if ( length $a[1] > 0 ) {
                         $primary_insert_sql .=
                           ", to_date('2007.10.30 $a[1]','yyyy.mm.dd HH24MI')";
@@ -369,7 +388,7 @@ while (1) {
                         $dbh->do( $insert_sql, undef );
                     }
                 }
-                print $new_sock "Data OK. <$first_names>\n";
+                print $new_sock "Data OK. <$first_name>\n";
             }
             else {
                 print $new_sock " ERROR: Invalid input!\n";
