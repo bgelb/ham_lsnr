@@ -133,7 +133,6 @@ while (1) {
             $valid_disposition_codes{ $row[0] } = $row[1];
         }
         $sth->finish;
-        my $insert_sql;
         my $this_diag_code;
         my $numrows;
 
