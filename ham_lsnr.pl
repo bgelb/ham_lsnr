@@ -107,7 +107,6 @@ while (1) {
         while ( my @row = $sth->fetchrow_array ) {
             $valid_location_ids{ $row[0] } = [ $row[1], $row[2] ];
         }
-        $sth->finish;
 
         # valid_diagnosis_codes
         # =====================
@@ -119,7 +118,6 @@ while (1) {
         while ( my @row = $sth->fetchrow_array ) {
             $valid_diagnosis_codes{ $row[0] } = $row[1];
         }
-        $sth->finish;
 
         # valid_disposition_codes
         # =====================
@@ -132,7 +130,6 @@ while (1) {
         while ( my @row = $sth->fetchrow_array ) {
             $valid_disposition_codes{ $row[0] } = $row[1];
         }
-        $sth->finish;
         my $this_diag_code;
         my $numrows;
 
