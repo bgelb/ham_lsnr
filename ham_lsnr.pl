@@ -217,11 +217,9 @@ while (1) {
 
                 # INPUT VALIDATION
                 my $update_type = undef;
-                my $insert_sql  = undef;
 
                 if ( $num_elements == 2 ) {
                     $update_type = "checkin";
-                    $insert_sql = " insert into medical_visit( sub_event_id, athlete_id, location_id, checkin_time) values( ?, ?, ?, to_date(?, 'HHMI') ) ";
                 }
                 elsif ( $num_elements >= 5 ) {
                     $update_type = "checkout";
@@ -376,7 +374,7 @@ while (1) {
                         my $diagnosis_id =
                           $valid_diagnosis_codes{ $a[$this_diag_code] };
 
-                        $insert_sql = "insert into medical_visit_to_diagnosis_map (visit_id, diagnosis_id) values ($visit_id, $diagnosis_id)";
+                        my $insert_sql = "insert into medical_visit_to_diagnosis_map (visit_id, diagnosis_id) values ($visit_id, $diagnosis_id)";
 
                         $dbh->do( $insert_sql, undef );
                     }
