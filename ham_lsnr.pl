@@ -130,8 +130,6 @@ while (1) {
         while ( my @row = $sth->fetchrow_array ) {
             $valid_disposition_codes{ $row[0] } = $row[1];
         }
-        my $this_diag_code;
-        my $numrows;
 
         my $station;
         my $buf;
@@ -275,7 +273,7 @@ while (1) {
 
                     my $bad_diag_code = "f";
                     while ( $i <= $num_diag_codes ) {
-                        $this_diag_code = $i + 3;
+                        my $this_diag_code = $i + 3;
                         my $Uc = uc $a[$this_diag_code];
                         $i++;
 
@@ -363,7 +361,7 @@ while (1) {
 
                     my $n = 1;
                     while ( $n <= $num_diag_codes ) {
-                        $this_diag_code = $n + 3;
+                        my $this_diag_code = $n + 3;
                         $n++;
 
                         #grab the diagnosis_id from the hash
