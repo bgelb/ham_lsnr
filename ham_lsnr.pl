@@ -37,9 +37,9 @@ sub get_athlete_id { # dbh, bib, athlete_id, first_name, err_str
     my $sth;
     my $num_records;
 
-    $sth = $_[0]->prepare("SELECT athlete_id, first_names from medical_athlete WHERE sub_event_id = $sub_event_id AND bib_number = '$_[1]' ");
+    $sth = $_[0]->prepare("SELECT athlete_id, first_names from medical_athlete WHERE sub_event_id = $sub_event_id AND bib_number = ? ");
 
-    $sth->execute;
+    $sth->execute($_[1]);
     $sth->bind_columns( undef, \$_[2], \$_[3] );
     $num_records = 0;
     while ( $sth->fetch ) {
@@ -186,13 +186,25 @@ while (1) {
                     exit(0);
                 }
                 elsif(uc $cmd eq "LR") {
+                    my $err_str;
+                    my $athlete_id;
+                    my $first_name;
+                    my $visit_id;
+
+                    $args =~ s/\s//g;
+                    if(!&get_athlete_id($dbh, $args, $athlete_id, $first_name, $err_str)) {
+                        print $new_sock " ERROR: $err_str\n->";
+                        next;
+                    }
+                    print $new_sock "Record for bib $args ($first_name)\n";
                 }
                 elsif(uc $cmd eq "LA") {
                     my $count = 0;
                     my $loc;
                     my $sth = $dbh->prepare("SELECT medical_athlete.bib_number,
                                                 COUNT(medical_visit.checkin_time),
-                                                COUNT(medical_visit.checkout_time)
+                                                COUNT(medical_visit.checkout_time),
+                                                to_char(MIN(medical_visit.checkin_time), 'HH24MI')
                                                 FROM medical_visit, medical_athlete
                                                 WHERE medical_visit.location_id = ?
                                                 AND medical_visit.athlete_id = medical_athlete.athlete_id
@@ -207,10 +219,11 @@ while (1) {
                     }
                         $sth->execute($valid_location_ids{$loc}[0]);
                     print $new_sock "\nPatients currently checked in to ".$valid_location_ids{$loc}[1]."\n\n";
+                    print $new_sock " bib @ time\n\n";
                     while ( my @row = $sth->fetchrow_array ) {
                         if($row[2] == 0) {
                             $count++;
-                            print $new_sock " ".$row[0]."\n";
+                            print $new_sock " ".$row[0]." @ ".$row[3]."\n";
                         }
                     }
                     print $new_sock "\n$count bib(s) checked in.\n";
