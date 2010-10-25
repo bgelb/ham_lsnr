@@ -24,10 +24,6 @@ my $incoming_tcp_port = 7890;
 # Event ID (2941 = MCM)
 my $sub_event_id = 2941;
 
-# Hardcode "other" disposition code, so we can prompt for extra info
-# TODO: encode this in database somehow
-my $transport_to_other_disposition_code = "TOF";
-
 open( ERROR, ">logs/ham_lsnr.ERROR.$$.txt" ) or die "Unable to open: $!";
 
 $SIG{__DIE__} = sub { print ERROR @_; };
@@ -125,10 +121,10 @@ while (1) {
         # the key is the ham_input, the value is the dispostion_id needed for the
         # table: medical_visit
         my %valid_disposition_codes = ();
-        $sth = $dbh->prepare("SELECT disposition_code, disposition_id FROM medical_disposition where sub_event_id = $sub_event_id") || die $dbh->errstr;
+        $sth = $dbh->prepare("SELECT disposition_code, disposition_id, prompt_for_more_info_p FROM medical_disposition where sub_event_id = $sub_event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
-            $valid_disposition_codes{ $row[0] } = $row[1];
+            $valid_disposition_codes{ $row[0] } = [ $row[1], $row[2] ];
         }
 
         my $station;
@@ -259,16 +255,16 @@ while (1) {
                     my $Ud = uc $a[3];
                     $a[3] = $Ud;
 
-                    if ( !exists( $valid_disposition_codes{$Ud} ) ) {
+                    if ( !exists( $valid_disposition_codes{$Ud}[0] ) ) {
                         print $new_sock
                           " ERROR: Invalid Disposition Code !\n->";
                         next;
                     }
-                    if ( $Ud eq $transport_to_other_disposition_code ) {
+                    if ( $valid_disposition_codes{$Ud}[1] ) {
                         print $new_sock " Other Destination:->";
                         $other_destination = <$new_sock>;
                     }
-                    $disposition_id = $valid_disposition_codes{$Ud};
+                    $disposition_id = $valid_disposition_codes{$Ud}[0];
                     my $i = 1;
 
                     my $bad_diag_code = "f";
