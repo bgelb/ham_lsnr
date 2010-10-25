@@ -189,6 +189,7 @@ while (1) {
                 }
                 elsif(uc $cmd eq "LA") {
                     my $count = 0;
+                    my $loc;
                     my $sth = $dbh->prepare("SELECT medical_athlete.bib_number,
                                                 COUNT(medical_visit.checkin_time),
                                                 COUNT(medical_visit.checkout_time)
@@ -196,8 +197,16 @@ while (1) {
                                                 WHERE medical_visit.location_id = ?
                                                 AND medical_visit.athlete_id = medical_athlete.athlete_id
                                                 GROUP BY medical_athlete.bib_number");
-                    $sth->execute($valid_location_ids{$station}[0]);
-                    print $new_sock "\nPatients currently checked in to ".$valid_location_ids{$station}[1]."\n\n";
+
+                    $args =~ s/\s//g;
+                    if(exists($valid_location_ids{$args})) {
+                        $loc = $args;
+                    }
+                    else {
+                        $loc = $station;
+                    }
+                        $sth->execute($valid_location_ids{$loc}[0]);
+                    print $new_sock "\nPatients currently checked in to ".$valid_location_ids{$loc}[1]."\n\n";
                     while ( my @row = $sth->fetchrow_array ) {
                         if($row[2] == 0) {
                             $count++;
