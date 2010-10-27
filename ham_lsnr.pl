@@ -99,7 +99,7 @@ while (1) {
         # the key
         my %valid_aid_stations = ();
         my %valid_location_ids = ();
-        my $sth = $dbh->prepare("SELECT ham_input, location_id, location_code, prompt_for_more_info_p FROM medical_location where sub_event_id = $sub_event_id") || die $dbh->errstr;
+        my $sth = $dbh->prepare("SELECT ham_input, location_id, location_name, prompt_for_more_info_p FROM medical_location where sub_event_id = $sub_event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
             $valid_aid_stations{ $row[0] } = [ $row[1], $row[2], $row[3] ];
