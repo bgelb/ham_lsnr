@@ -75,7 +75,7 @@ my $main_sock = new IO::Socket::INET(
     Listen    => 50,
     Proto     => 'tcp',
     Reuse     => 1,
-) or die "Socket could not be created. Reason: $!\n";
+) or die "Socket could not be created. Reason: $!\r\n";
 
 while (1) {
     my $new_sock = $main_sock->accept();
@@ -91,7 +91,7 @@ while (1) {
         # Child process
 
         my $dbh = DBI->connect( $data_source, $data_source_user, $data_source_pass )
-          or die "ERR: Couldn't open connection: " . $DBI::errstr . "\n";
+          or die "ERR: Couldn't open connection: " . $DBI::errstr . "\r\n";
 
         # valid_location_ids
         # =====================
@@ -139,19 +139,19 @@ while (1) {
             if(defined($buf = <$new_sock>)) {
                 $buf =~ s/\s//g; # strip whitespace
                 if($buf eq "?") {
-                    print $new_sock "Valid locations:\n";
+                    print $new_sock "Valid locations:\r\n";
                     foreach (sort { $a <=> $b }(keys %valid_location_ids)) {
-                        print $new_sock "  $_ $valid_location_ids{$_}[1]\n";
+                        print $new_sock "  $_ $valid_location_ids{$_}[1]\r\n";
                     }
                 }
                 elsif(exists($valid_location_ids{$buf})) {
                     $station = $buf;
-                    print $new_sock "Hello $valid_location_ids{$station}[1]!\n";
-                    print $new_sock "\n->";
+                    print $new_sock "Hello $valid_location_ids{$station}[1]!\r\n";
+                    print $new_sock "\r\n->";
                     last;
                 }
                 else {
-                    print $new_sock "ERROR: Invalid Aid Station!\n";
+                    print $new_sock "ERROR: Invalid Aid Station!\r\n";
                 }
             }
             else {
@@ -193,10 +193,10 @@ while (1) {
 
                     $args =~ s/\s//g;
                     if(!&get_athlete_id($dbh, $args, $athlete_id, $first_name, $err_str)) {
-                        print $new_sock " ERROR: $err_str\n->";
+                        print $new_sock " ERROR: $err_str\r\n->";
                         next;
                     }
-                    print $new_sock "Record for bib $args ($first_name)\n";
+                    print $new_sock "Record for bib $args ($first_name)\r\n";
                 }
                 elsif(uc $cmd eq "LA") {
                     my $count = 0;
@@ -218,15 +218,15 @@ while (1) {
                         $loc = $station;
                     }
                         $sth->execute($valid_location_ids{$loc}[0]);
-                    print $new_sock "\nPatients currently checked in to ".$valid_location_ids{$loc}[1]."\n\n";
-                    print $new_sock " bib @ time\n\n";
+                    print $new_sock "\r\nPatients currently checked in to ".$valid_location_ids{$loc}[1]."\r\n\r\n";
+                    print $new_sock " bib @ time\r\n\r\n";
                     while ( my @row = $sth->fetchrow_array ) {
                         if($row[2] == 0) {
                             $count++;
-                            print $new_sock " ".$row[0]." @ ".$row[3]."\n";
+                            print $new_sock " ".$row[0]." @ ".$row[3]."\r\n";
                         }
                     }
-                    print $new_sock "\n$count bib(s) checked in.\n";
+                    print $new_sock "\r\n$count bib(s) checked in.\r\n";
                 }
                 elsif(uc $cmd eq "RC") {
                     my @comment_vec = split ',', $args, 2;
@@ -237,20 +237,20 @@ while (1) {
                     my $visit_id;
 
                     if(!&get_athlete_id($dbh, $comment_vec[0], $athlete_id, $first_name, $err_str)) {
-                        print $new_sock " ERROR: $err_str\n->";
+                        print $new_sock " ERROR: $err_str\r\n->";
                         next;
                     }
 
                     $visit_id = &get_next_visit_id($dbh);
                     my $sth = $dbh->prepare("insert into medical_visit (visit_id, athlete_id, location_id, notes) values (?,?,?,?)");
                     if(!$sth->execute($visit_id, $athlete_id, $valid_location_ids{$station}[0], $comment_vec[1])) {
-                      print $new_sock " ERROR: Database insert failed.\n->";
+                      print $new_sock " ERROR: Database insert failed.\r\n->";
                       next;
                     }
-                    print $new_sock "Data OK. <$first_name>\n";
+                    print $new_sock "Data OK. <$first_name>\r\n";
                 }
                 else {
-                    print $new_sock " ERROR: Invalid input!\n";
+                    print $new_sock " ERROR: Invalid input!\r\n";
                 }
             }
             elsif($buf =~ m/^[0-9]{1,5}\s*,/g) {
@@ -273,7 +273,7 @@ while (1) {
                     $update_type = "checkout";
                 }
                 else {
-                    print $new_sock " ERROR: Invalid Field Count !\n->";
+                    print $new_sock " ERROR: Invalid Field Count !\r\n->";
                     next;
                 }
 
@@ -288,14 +288,14 @@ while (1) {
                 {
                     if (!(&is_time_valid($a[1])))
                     {
-                        print $new_sock " ERROR: Invalid Time In !\n->";
+                        print $new_sock " ERROR: Invalid Time In !\r\n->";
                         next;
                     }
                 }
                 if ( $update_type eq 'checkout' ) {
                     if (!(&is_time_valid($a[2])))
                     {
-                        print $new_sock " ERROR: Invalid Time Out !\n->";
+                        print $new_sock " ERROR: Invalid Time Out !\r\n->";
                         next;
                     }
                 }
@@ -307,7 +307,7 @@ while (1) {
                     # check time-out:
                     # make sure time-in is not later than time-out
                     #if (get_from_db > $a[3]) {
-                    # print $new_sock " ERROR: Time In After Time Out !\n->";
+                    # print $new_sock " ERROR: Time In After Time Out !\r\n->";
                     # next;
                     #}
                     my $Ud = uc $a[3];
@@ -315,7 +315,7 @@ while (1) {
 
                     if ( !exists( $valid_disposition_codes{$Ud}[0] ) ) {
                         print $new_sock
-                          " ERROR: Invalid Disposition Code !\n->";
+                          " ERROR: Invalid Disposition Code !\r\n->";
                         next;
                     }
                     if ( $valid_disposition_codes{$Ud}[1] ) {
@@ -335,7 +335,7 @@ while (1) {
 
                         if ( !exists( $valid_diagnosis_codes{$Uc} ) ) {
                             print $new_sock
-                              " ERROR: Invalid Diagnosis Code !\n->";
+                              " ERROR: Invalid Diagnosis Code !\r\n->";
 
                             $bad_diag_code = "t";
                             next;
@@ -356,7 +356,7 @@ while (1) {
                     my $err_str;
 
                     if(!&get_athlete_id($dbh, $a[0], $athlete_id, $first_name, $err_str)) {
-                        print $new_sock " ERROR: $err_str\n->";
+                        print $new_sock " ERROR: $err_str\r\n->";
                         next;
                     }
 
@@ -396,7 +396,7 @@ while (1) {
                     # then, for each diagnosis code to insert a record into the mapping table
                     #
                     if ( $other_destination ) {
-                        $notes = ("\nother destination: $other_destination") if($other_destination);
+                        $notes = ("\r\nother destination: $other_destination") if($other_destination);
                     }
                     my $primary_insert_sql = "insert into medical_visit (visit_id, athlete_id, location_id, checkout_time, disposition_id, record_timestamp";
                     if ( length $a[1] > 0 ) {
@@ -427,10 +427,10 @@ while (1) {
                         $dbh->do( $insert_sql, undef );
                     }
                 }
-                print $new_sock "Data OK. <$first_name>\n";
+                print $new_sock "Data OK. <$first_name>\r\n";
             }
             else {
-                print $new_sock " ERROR: Invalid input!\n";
+                print $new_sock " ERROR: Invalid input!\r\n";
             }
             print $new_sock "->";
         }
