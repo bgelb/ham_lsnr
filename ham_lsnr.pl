@@ -93,15 +93,17 @@ while (1) {
         my $dbh = DBI->connect( $data_source, $data_source_user, $data_source_pass )
           or die "ERR: Couldn't open connection: " . $DBI::errstr . "\r\n";
 
-        # valid_location_ids
+        # valid_aid_stations
         # =====================
         # drop all the location_id values into hash of arrays with the ham input as
         # the key
+        my %valid_aid_stations = ();
         my %valid_location_ids = ();
         my $sth = $dbh->prepare("SELECT ham_input, location_id, location_code, prompt_for_more_info_p FROM medical_location where sub_event_id = $sub_event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
-            $valid_location_ids{ $row[0] } = [ $row[1], $row[2] ];
+            $valid_aid_stations{ $row[0] } = [ $row[1], $row[2], $row[3] ];
+            $valid_location_ids{ $row[1] } = [ $row[0], $row[2], $row[3] ];
         }
 
         # valid_diagnosis_codes
@@ -109,10 +111,12 @@ while (1) {
         # hash map with the diagnosis code as the key
         # diagnosis_id as the value
         my %valid_diagnosis_codes = ();
-        $sth = $dbh->prepare("SELECT diagnosis_code, diagnosis_id FROM medical_diagnosis where sub_event_id = $sub_event_id") || die $dbh->errstr;
+        my %valid_diagnosis_ids = ();
+        $sth = $dbh->prepare("SELECT diagnosis_code, diagnosis_id, diagnosis_name FROM medical_diagnosis where sub_event_id = $sub_event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
-            $valid_diagnosis_codes{ $row[0] } = $row[1];
+            $valid_diagnosis_codes{ $row[0] } = [ $row[1], $row[2] ];
+            $valid_diagnosis_ids{ $row[1] } = [ $row[0], $row[2] ];
         }
 
         # valid_disposition_codes
@@ -121,10 +125,12 @@ while (1) {
         # the key is the ham_input, the value is the dispostion_id needed for the
         # table: medical_visit
         my %valid_disposition_codes = ();
-        $sth = $dbh->prepare("SELECT disposition_code, disposition_id, prompt_for_more_info_p FROM medical_disposition where sub_event_id = $sub_event_id") || die $dbh->errstr;
+        my %valid_disposition_ids = ();
+        $sth = $dbh->prepare("SELECT disposition_code, disposition_id, prompt_for_more_info_p, disposition_name FROM medical_disposition where sub_event_id = $sub_event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
-            $valid_disposition_codes{ $row[0] } = [ $row[1], $row[2] ];
+            $valid_disposition_codes{ $row[0] } = [ $row[1], $row[2], $row[3] ];
+            $valid_disposition_ids{ $row[1] } = [ $row[0], $row[2], $row[3] ];
         }
 
         my $station;
@@ -140,13 +146,13 @@ while (1) {
                 $buf =~ s/\s//g; # strip whitespace
                 if($buf eq "?") {
                     print $new_sock "Valid locations:\r\n";
-                    foreach (sort { $a <=> $b }(keys %valid_location_ids)) {
-                        print $new_sock "  $_ $valid_location_ids{$_}[1]\r\n";
+                    foreach (sort { $a <=> $b }(keys %valid_aid_stations)) {
+                        print $new_sock "  $_ $valid_aid_stations{$_}[1]\r\n";
                     }
                 }
-                elsif(exists($valid_location_ids{$buf})) {
+                elsif(exists($valid_aid_stations{$buf})) {
                     $station = $buf;
-                    print $new_sock "Hello $valid_location_ids{$station}[1]!\r\n";
+                    print $new_sock "Hello $valid_aid_stations{$station}[1]!\r\n";
                     print $new_sock "\r\n->";
                     last;
                 }
@@ -196,7 +202,50 @@ while (1) {
                         print $new_sock " ERROR: $err_str\r\n->";
                         next;
                     }
-                    print $new_sock "Record for bib $args ($first_name)\r\n";
+                    print $new_sock "Record for bib $args ($first_name)\r\n\r\n";
+                    print $new_sock "Check In/Check Out History:\r\n";
+
+                    my $sth = $dbh->prepare("SELECT to_char(vis.record_timestamp, 'HH24:MI.ss') AS ts,
+                                                    vis.location_id,
+                                                    to_char(vis.checkin_time, 'HH24:MI') as checkin,
+                                                    to_char(vis.checkout_time, 'HH24:MI') as checkout,
+                                                    vis.disposition_id,
+                                                    map.diagnosis_id
+                                                    FROM medical_visit vis LEFT OUTER JOIN medical_visit_to_diagnosis_map map
+                                                    ON vis.visit_id=map.visit_id
+                                                    WHERE athlete_id=? ORDER BY ts ASC");
+                    $sth->execute($athlete_id);
+                    my $count = 0;
+                    while ( my @row = $sth->fetchrow_array ) {
+                        $count++;
+                        if(defined($row[2]) || defined($row[3])) {
+                            print $new_sock "  ".$valid_location_ids{$row[1]}[1]." In: ".(defined($row[2]) ? $row[2] : "----")." Out: ".(defined($row[3]) ? $row[3] : "----") ."\r\n";
+                            if(defined($row[5]) && exists($valid_diagnosis_ids{$row[5]})) {
+                                print $new_sock "    Diagnosis: ".$valid_diagnosis_ids{$row[5]}[1]."\r\n";
+                            }
+                            if(defined($row[4]) && exists($valid_disposition_ids{$row[4]})) {
+                                print $new_sock "    Disposition: ".$valid_disposition_ids{$row[4]}[2]."\r\n";
+                            }
+                            print $new_sock "\r\n";
+                        }
+                    }
+
+                    $sth = $dbh->prepare("SELECT to_char(record_timestamp, 'HH24:MI.ss') AS ts,
+                                            location_id,
+                                            notes
+                                            FROM medical_visit
+                                            WHERE notes IS NOT NULL AND athlete_id=?
+                                            ORDER BY ts ASC");
+
+                    $sth->execute($athlete_id);
+                    print $new_sock "Notes:\r\n";
+                    while ( my @row = $sth->fetchrow_array ) {
+                        print $new_sock " ".$row[0]." ".$valid_location_ids{$row[1]}[1].": ".$row[2]."\r\n";
+                    }
+                    if($count == 0) {
+                        print $new_sock "No records found for bib $args ($first_name).\r\n";
+                    }
+
                 }
                 elsif(uc $cmd eq "LA") {
                     my $count = 0;
@@ -204,21 +253,21 @@ while (1) {
                     my $sth = $dbh->prepare("SELECT medical_athlete.bib_number,
                                                 COUNT(medical_visit.checkin_time),
                                                 COUNT(medical_visit.checkout_time),
-                                                to_char(MIN(medical_visit.checkin_time), 'HH24MI')
+                                                to_char(MIN(medical_visit.checkin_time), 'HH24:MI')
                                                 FROM medical_visit, medical_athlete
                                                 WHERE medical_visit.location_id = ?
                                                 AND medical_visit.athlete_id = medical_athlete.athlete_id
                                                 GROUP BY medical_athlete.bib_number");
 
                     $args =~ s/\s//g;
-                    if(exists($valid_location_ids{$args})) {
+                    if(exists($valid_aid_stations{$args})) {
                         $loc = $args;
                     }
                     else {
                         $loc = $station;
                     }
-                        $sth->execute($valid_location_ids{$loc}[0]);
-                    print $new_sock "\r\nPatients currently checked in to ".$valid_location_ids{$loc}[1]."\r\n\r\n";
+                        $sth->execute($valid_aid_stations{$loc}[0]);
+                    print $new_sock "\r\nPatients currently checked in to ".$valid_aid_stations{$loc}[1]."\r\n\r\n";
                     print $new_sock " bib @ time\r\n\r\n";
                     while ( my @row = $sth->fetchrow_array ) {
                         if($row[2] == 0) {
@@ -242,8 +291,8 @@ while (1) {
                     }
 
                     $visit_id = &get_next_visit_id($dbh);
-                    my $sth = $dbh->prepare("insert into medical_visit (visit_id, athlete_id, location_id, notes) values (?,?,?,?)");
-                    if(!$sth->execute($visit_id, $athlete_id, $valid_location_ids{$station}[0], $comment_vec[1])) {
+                    my $sth = $dbh->prepare("insert into medical_visit (visit_id, athlete_id, location_id, notes, checkin_time, checkout_time) values (?,?,?,?,NULL,NULL)");
+                    if(!$sth->execute($visit_id, $athlete_id, $valid_aid_stations{$station}[0], $comment_vec[1])) {
                       print $new_sock " ERROR: Database insert failed.\r\n->";
                       next;
                     }
@@ -347,7 +396,7 @@ while (1) {
                 }
                 my ( $athlete_id, $first_name );
                 my $visit_id;
-                my $locale = $valid_location_ids{$station}[0];
+                my $locale = $valid_aid_stations{$station}[0];
 
                 if ( $update_type eq 'checkin' or $update_type eq 'checkout' ) {
 
@@ -420,7 +469,7 @@ while (1) {
 
                         #grab the diagnosis_id from the hash
                         my $diagnosis_id =
-                          $valid_diagnosis_codes{ $a[$this_diag_code] };
+                          $valid_diagnosis_codes{ $a[$this_diag_code] }[0];
 
                         my $insert_sql = "insert into medical_visit_to_diagnosis_map (visit_id, diagnosis_id) values ($visit_id, $diagnosis_id)";
 
