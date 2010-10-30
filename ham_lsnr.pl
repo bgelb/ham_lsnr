@@ -447,15 +447,15 @@ while (1) {
                     if ( $other_destination ) {
                         $notes = ("\r\nother destination: $other_destination") if($other_destination);
                     }
-                    my $primary_insert_sql = "insert into medical_visit (visit_id, athlete_id, location_id, checkout_time, disposition_id, record_timestamp";
-                    if ( length $a[1] > 0 ) {
-                        $primary_insert_sql .= ", checkin_time";
-                    }
+                    my $primary_insert_sql = "insert into medical_visit (visit_id, athlete_id, location_id, checkout_time, disposition_id, record_timestamp, checkin_time";
                     $primary_insert_sql .= ", notes" if ($notes);
                     $primary_insert_sql .= ") values ($visit_id, '$athlete_id','$locale',to_date(concat(to_char(sysdate, 'YYYY.MM.DD'),' $a[2]'),'yyyy.mm.dd HH24MI'), '$disposition_id', sysdate";
                     if ( length $a[1] > 0 ) {
                         $primary_insert_sql .=
                           ", to_date('2007.10.30 $a[1]','yyyy.mm.dd HH24MI')";
+                    }
+                    else {
+                        $primary_insert_sql .= ", NULL";
                     }
                     $primary_insert_sql .= ",'$notes' " if ($notes);
                     $primary_insert_sql .= ")";
