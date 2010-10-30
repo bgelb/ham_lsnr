@@ -270,7 +270,7 @@ while (1) {
                     print $new_sock "\r\nPatients currently checked in to ".$valid_aid_stations{$loc}[1]."\r\n\r\n";
                     print $new_sock " bib @ time\r\n\r\n";
                     while ( my @row = $sth->fetchrow_array ) {
-                        if($row[2] == 0) {
+                        if($row[1] > 0 && $row[2] == 0) {
                             $count++;
                             print $new_sock " ".$row[0]." @ ".$row[3]."\r\n";
                         }
