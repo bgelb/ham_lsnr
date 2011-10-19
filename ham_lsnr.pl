@@ -14,15 +14,18 @@ use DBI;
 use Switch;
 
 # Database connection parameters
-my $data_source      = "dbi:Oracle:host=127.0.0.1;sid=orcl;port=1521";
-my $data_source_user = "doitreg";
-my $data_source_pass = "doitregrules";
+my $data_source      = "dbi:Pg:host=127.0.0.1;dbname=ra";
+my $data_source_user = "radude";
+my $data_source_pass = "raR0cks";
 
 # Port to listen for incoming TCP connections
 my $incoming_tcp_port = 7890;
 
 # Event ID (2941 = MCM)
 my $sub_event_id = 2941;
+
+# Event ID (26 = MCM)
+my $event_id = 26;
 
 open( ERROR, ">logs/ham_lsnr.ERROR.$$.txt" ) or die "Unable to open: $!";
 
@@ -99,11 +102,11 @@ while (1) {
         # the key
         my %valid_aid_stations = ();
         my %valid_location_ids = ();
-        my $sth = $dbh->prepare("SELECT ham_input, location_id, location_name, prompt_for_more_info_p FROM medical_location where sub_event_id = $sub_event_id") || die $dbh->errstr;
+        my $sth = $dbh->prepare("SELECT haminput, id, name FROM medlocations WHERE event_id = $event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
-            $valid_aid_stations{ $row[0] } = [ $row[1], $row[2], $row[3] ];
-            $valid_location_ids{ $row[1] } = [ $row[0], $row[2], $row[3] ];
+            $valid_aid_stations{ $row[0] } = [ $row[1], $row[2], 0 ];
+            $valid_location_ids{ $row[1] } = [ $row[0], $row[2], 0 ];
         }
 
         # valid_diagnosis_codes
@@ -112,7 +115,7 @@ while (1) {
         # diagnosis_id as the value
         my %valid_diagnosis_codes = ();
         my %valid_diagnosis_ids = ();
-        $sth = $dbh->prepare("SELECT diagnosis_code, diagnosis_id, diagnosis_name FROM medical_diagnosis where sub_event_id = $sub_event_id") || die $dbh->errstr;
+        $sth = $dbh->prepare("SELECT code, id, name FROM meddiagnosis where event_id = $event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
             $valid_diagnosis_codes{ $row[0] } = [ $row[1], $row[2] ];
@@ -126,11 +129,29 @@ while (1) {
         # table: medical_visit
         my %valid_disposition_codes = ();
         my %valid_disposition_ids = ();
-        $sth = $dbh->prepare("SELECT disposition_code, disposition_id, prompt_for_more_info_p, disposition_name FROM medical_disposition where sub_event_id = $sub_event_id") || die $dbh->errstr;
+        $sth = $dbh->prepare("SELECT code, id, prompt_for_more_info, name FROM meddispositions where event_id = $event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
             $valid_disposition_codes{ $row[0] } = [ $row[1], $row[2], $row[3] ];
             $valid_disposition_ids{ $row[1] } = [ $row[0], $row[2], $row[3] ];
+        }
+
+        # subevent_ids
+        my @subevent_ids;
+        my $subevent_string;
+        my $ii;
+
+        $sth = $dbh->prepare("SELECT id FROM subevent WHERE event_id = $event_id") || die $dbh->errstr;
+        $sth->execute() || die $sth->errstr;
+        $subevent_string = "";
+        $ii = 0;
+        while ( my @row = $sth->fetchrow_array ) {
+            $subevent_ids[$ii] = $row[0];
+            if($ii != 0) {
+                $subevent_string .= ", ";
+            }
+            $subevent_string .= $row[0];
+            $ii++;
         }
 
         my $station;
