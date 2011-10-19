@@ -67,9 +67,9 @@ sub get_next_visit_id { # dbh
     my $sth;
     my $visit_id;
 
-    $sth = $_[0]->prepare("SELECT medial_visit_sequence.nextval as visit_id from dual");
-    $sth->bind_columns( undef, \$visit_id );
+    $sth = $_[0]->prepare("SELECT nextval('medvisits_id_seq') as visit_id");
     $sth->execute;
+    $sth->bind_columns( undef, \$visit_id );
     while ( $sth->fetch ) {}
     return $visit_id;
 }
@@ -270,14 +270,14 @@ while (1) {
                 elsif(uc $cmd eq "LA") {
                     my $count = 0;
                     my $loc;
-                    my $sth = $dbh->prepare("SELECT medical_athlete.bib_number,
-                                                COUNT(medical_visit.checkin_time),
-                                                COUNT(medical_visit.checkout_time),
-                                                to_char(MIN(medical_visit.checkin_time), 'HH24:MI')
-                                                FROM medical_visit, medical_athlete
-                                                WHERE medical_visit.location_id = ?
-                                                AND medical_visit.athlete_id = medical_athlete.athlete_id
-                                                GROUP BY medical_athlete.bib_number");
+                    my $sth = $dbh->prepare("SELECT entrant.bib,
+                                                COUNT(medvisits.checkintime),
+                                                COUNT(medvisits.checkouttime),
+                                                MIN(to_number(medvisits.checkintime, '9999'))
+                                                FROM medvisits, entrant
+                                                WHERE medvisits.medlocation_id = ?
+                                                AND medvisits.entrant_id = entrant.id
+                                                GROUP BY entrant.bib");
 
                     $args =~ s/\s//g;
                     if(exists($valid_aid_stations{$args})) {
@@ -311,7 +311,7 @@ while (1) {
                     }
 
                     $visit_id = &get_next_visit_id($dbh);
-                    my $sth = $dbh->prepare("insert into medical_visit (visit_id, athlete_id, location_id, notes, checkin_time, checkout_time) values (?,?,?,?,NULL,NULL)");
+                    my $sth = $dbh->prepare("insert into medvisits (id, entrant_id, medlocation_id, notes, checkintime, checkouttime) values (?,?,?,?,NULL,NULL)");
                     if(!$sth->execute($visit_id, $athlete_id, $valid_aid_stations{$station}[0], $comment_vec[1])) {
                       print $new_sock " ERROR: Database insert failed.\r\n->";
                       next;
@@ -438,16 +438,14 @@ while (1) {
                         $notes = ("other destination: $other_destination") if($other_destination);
                     }
                     my $sth3 = $dbh->prepare(
-                        "insert into medical_visit (visit_id,
-                          athlete_id, location_id,
-                          checkin_time, notes
+                        "insert into medvisits (id,
+                          entrant_id, medlocation_id,
+                          checkintime, notes
                       ) values ($visit_id,
-                          $athlete_id,
-                          $locale,
-                          to_date(
-                              concat(to_char(sysdate, 'YYYY.MM.DD'),' $a[1]'),
-                              'yyyy.mm.dd HH24MI'
-                          ), '$notes'
+                            $athlete_id,
+                            $locale,
+                            '$a[1]',
+                            '$notes'
                       )"
                     );
                     $sth3->execute
@@ -467,12 +465,12 @@ while (1) {
                     if ( $other_destination ) {
                         $notes = ("\r\nother destination: $other_destination") if($other_destination);
                     }
-                    my $primary_insert_sql = "insert into medical_visit (visit_id, athlete_id, location_id, checkout_time, disposition_id, record_timestamp, checkin_time";
+                    my $primary_insert_sql = "insert into medvisits (id, entrant_id, medlocation_id, checkouttime, meddisposition_id, lastupdated, checkintime";
                     $primary_insert_sql .= ", notes" if ($notes);
-                    $primary_insert_sql .= ") values ($visit_id, '$athlete_id','$locale',to_date(concat(to_char(sysdate, 'YYYY.MM.DD'),' $a[2]'),'yyyy.mm.dd HH24MI'), '$disposition_id', sysdate";
+                    $primary_insert_sql .= ") values ($visit_id, '$athlete_id','$locale','$a[2]', '$disposition_id', now()";
                     if ( length $a[1] > 0 ) {
                         $primary_insert_sql .=
-                          ", to_date('2007.10.30 $a[1]','yyyy.mm.dd HH24MI')";
+                          ", '$a[1]'";
                     }
                     else {
                         $primary_insert_sql .= ", NULL";
@@ -491,7 +489,7 @@ while (1) {
                         my $diagnosis_id =
                           $valid_diagnosis_codes{ $a[$this_diag_code] }[0];
 
-                        my $insert_sql = "insert into medical_visit_to_diagnosis_map (visit_id, diagnosis_id) values ($visit_id, $diagnosis_id)";
+                        my $insert_sql = "insert into medvisitdiagnosis (medvisit_id, meddiagnosis_id) values ($visit_id, $diagnosis_id)";
 
                         $dbh->do( $insert_sql, undef );
                     }
