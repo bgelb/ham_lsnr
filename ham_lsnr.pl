@@ -21,11 +21,12 @@ my $data_source_pass = "raR0cks";
 # Port to listen for incoming TCP connections
 my $incoming_tcp_port = 7890;
 
-# Event ID (2941 = MCM)
-my $sub_event_id = 2941;
-
 # Event ID (26 = MCM)
 my $event_id = 26;
+
+# to be populated from DB
+my @subevent_ids;
+my $subevent_string;
 
 open( ERROR, ">logs/ham_lsnr.ERROR.$$.txt" ) or die "Unable to open: $!";
 
@@ -40,7 +41,7 @@ sub get_athlete_id { # dbh, bib, athlete_id, first_name, err_str
     my $sth;
     my $num_records;
 
-    $sth = $_[0]->prepare("SELECT athlete_id, first_names from medical_athlete WHERE sub_event_id = $sub_event_id AND bib_number = ? ");
+    $sth = $_[0]->prepare("SELECT id, firstname from entrant WHERE subevent_id IN ($subevent_string) AND bib = ? ");
 
     $sth->execute($_[1]);
     $sth->bind_columns( undef, \$_[2], \$_[3] );
@@ -137,8 +138,6 @@ while (1) {
         }
 
         # subevent_ids
-        my @subevent_ids;
-        my $subevent_string;
         my $ii;
 
         $sth = $dbh->prepare("SELECT id FROM subevent WHERE event_id = $event_id") || die $dbh->errstr;
@@ -226,15 +225,15 @@ while (1) {
                     print $new_sock "Record for bib $args ($first_name)\r\n\r\n";
                     print $new_sock "Check In/Check Out History:\r\n";
 
-                    my $sth = $dbh->prepare("SELECT to_char(vis.record_timestamp, 'HH24:MI.ss') AS ts,
-                                                    vis.location_id,
-                                                    to_char(vis.checkin_time, 'HH24:MI') as checkin,
-                                                    to_char(vis.checkout_time, 'HH24:MI') as checkout,
-                                                    vis.disposition_id,
-                                                    map.diagnosis_id
-                                                    FROM medical_visit vis LEFT OUTER JOIN medical_visit_to_diagnosis_map map
-                                                    ON vis.visit_id=map.visit_id
-                                                    WHERE athlete_id=? ORDER BY ts ASC");
+                    my $sth = $dbh->prepare("SELECT to_char(vis.lastupdated, 'HH24:MI.ss') AS ts,
+                                                    vis.medlocation_id,
+                                                    vis.checkintime as checkin,
+                                                    vis.checkouttime as checkout,
+                                                    vis.meddisposition_id,
+                                                    map.meddiagnosis_id
+                                                    FROM medvisits vis LEFT OUTER JOIN medvisitdiagnosis map
+                                                    ON vis.id=map.medvisit_id
+                                                    WHERE entrant_id=? ORDER BY ts ASC");
                     $sth->execute($athlete_id);
                     my $count = 0;
                     while ( my @row = $sth->fetchrow_array ) {
@@ -251,11 +250,11 @@ while (1) {
                         }
                     }
 
-                    $sth = $dbh->prepare("SELECT to_char(record_timestamp, 'HH24:MI.ss') AS ts,
-                                            location_id,
+                    $sth = $dbh->prepare("SELECT to_char(lastupdated, 'HH24:MI.ss') AS ts,
+                                            medlocation_id,
                                             notes
-                                            FROM medical_visit
-                                            WHERE notes IS NOT NULL AND athlete_id=?
+                                            FROM medvisits
+                                            WHERE notes IS NOT NULL AND entrant_id=?
                                             ORDER BY ts ASC");
 
                     $sth->execute($athlete_id);
