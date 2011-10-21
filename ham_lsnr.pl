@@ -37,6 +37,10 @@ sub is_time_valid {
     return ($_[0] =~ m/^((0?[0-9])|(1[0-9])|(2[0-3]))[0-5][0-9]$/);
 }
 
+sub time_add_sep {
+    return ($_[0] =~ s/^([0-9]{1,2})([0-5][0-9])/$1:$2/g);
+}
+
 sub get_athlete_id { # dbh, bib, athlete_id, first_name, err_str
     my $sth;
     my $num_records;
@@ -227,8 +231,8 @@ while (1) {
 
                     my $sth = $dbh->prepare("SELECT to_char(vis.lastupdated, 'HH24:MI.ss') AS ts,
                                                     vis.medlocation_id,
-                                                    vis.checkintime as checkin,
-                                                    vis.checkouttime as checkout,
+                                                    replace(vis.checkintime, ':', '') as checkin,
+                                                    replace(vis.checkouttime, ':', '') as checkout,
                                                     vis.meddisposition_id,
                                                     map.meddiagnosis_id
                                                     FROM medvisits vis LEFT OUTER JOIN medvisitdiagnosis map
@@ -273,7 +277,7 @@ while (1) {
                     my $sth = $dbh->prepare("SELECT entrant.bib,
                                                 COUNT(medvisits.checkintime),
                                                 COUNT(medvisits.checkouttime),
-                                                MIN(to_number(medvisits.checkintime, '9999'))
+                                                MIN(to_number(replace(medvisits.checkintime, ':', ''), '9999'))
                                                 FROM medvisits, entrant
                                                 WHERE medvisits.medlocation_id = ?
                                                 AND medvisits.entrant_id = entrant.id
@@ -437,6 +441,7 @@ while (1) {
                     if ( $other_destination ) {
                         $notes = ("other destination: $other_destination") if($other_destination);
                     }
+                    &time_add_sep($a[1]);
                     my $sth3 = $dbh->prepare(
                         "insert into medvisits (id,
                           entrant_id, medlocation_id,
@@ -467,8 +472,10 @@ while (1) {
                     }
                     my $primary_insert_sql = "insert into medvisits (id, entrant_id, medlocation_id, checkouttime, meddisposition_id, lastupdated, checkintime";
                     $primary_insert_sql .= ", notes" if ($notes);
+                    &time_add_sep($a[2]);
                     $primary_insert_sql .= ") values ($visit_id, '$athlete_id','$locale','$a[2]', '$disposition_id', now()";
                     if ( length $a[1] > 0 ) {
+                    &time_add_sep($a[1]);
                         $primary_insert_sql .=
                           ", '$a[1]'";
                     }
