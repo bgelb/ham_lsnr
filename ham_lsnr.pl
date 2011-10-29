@@ -275,8 +275,8 @@ while (1) {
                     my $count = 0;
                     my $loc;
                     my $sth = $dbh->prepare("SELECT entrant.bib,
-                                                COUNT(medvisits.checkintime),
-                                                COUNT(medvisits.checkouttime),
+                                                COUNT(NULLIF(medvisits.checkintime, '')),
+                                                COUNT(NULLIF(medvisits.checkouttime, '')),
                                                 MIN(to_number(replace(medvisits.checkintime, ':', ''), '9999'))
                                                 FROM medvisits, entrant
                                                 WHERE medvisits.medlocation_id = ?
