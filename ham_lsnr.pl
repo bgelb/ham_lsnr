@@ -22,7 +22,8 @@ my $data_source_pass = "raR0cks";
 my $incoming_tcp_port = 7890;
 
 # Event ID (26 = MCM)
-my $event_id = 26;
+#my $event_id = 793;
+my $event_id = 1332;
 
 # to be populated from DB
 my @subevent_ids;
@@ -120,7 +121,7 @@ while (1) {
         # diagnosis_id as the value
         my %valid_diagnosis_codes = ();
         my %valid_diagnosis_ids = ();
-        $sth = $dbh->prepare("SELECT code, id, name FROM meddiagnosis where event_id = $event_id") || die $dbh->errstr;
+        $sth = $dbh->prepare("SELECT code, id, name FROM medcomplaints where event_id = $event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
             $valid_diagnosis_codes{ $row[0] } = [ $row[1], $row[2] ];
@@ -234,8 +235,8 @@ while (1) {
                                                     replace(vis.checkintime, ':', '') as checkin,
                                                     replace(vis.checkouttime, ':', '') as checkout,
                                                     vis.meddisposition_id,
-                                                    map.meddiagnosis_id
-                                                    FROM medvisits vis LEFT OUTER JOIN medvisitdiagnosis map
+                                                    map.medcomplaint_id
+                                                    FROM medvisits vis LEFT OUTER JOIN medvisitcomplaints map
                                                     ON vis.id=map.medvisit_id
                                                     WHERE entrant_id=? ORDER BY ts ASC");
                     $sth->execute($athlete_id);
@@ -496,7 +497,7 @@ while (1) {
                         my $diagnosis_id =
                           $valid_diagnosis_codes{ $a[$this_diag_code] }[0];
 
-                        my $insert_sql = "insert into medvisitdiagnosis (medvisit_id, meddiagnosis_id) values ($visit_id, $diagnosis_id)";
+                        my $insert_sql = "insert into medvisitcomplaints (medvisit_id, medcomplaint_id) values ($visit_id, $diagnosis_id)";
 
                         $dbh->do( $insert_sql, undef );
                     }
