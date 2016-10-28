@@ -121,7 +121,7 @@ while (1) {
         # diagnosis_id as the value
         my %valid_diagnosis_codes = ();
         my %valid_diagnosis_ids = ();
-        $sth = $dbh->prepare("SELECT code, id, name FROM medcomplaints where event_id = $event_id") || die $dbh->errstr;
+        $sth = $dbh->prepare("SELECT upper(code) as code, id, name FROM medcomplaints where event_id = $event_id") || die $dbh->errstr;
         $sth->execute() || die $sth->errstr;
         while ( my @row = $sth->fetchrow_array ) {
             $valid_diagnosis_codes{ $row[0] } = [ $row[1], $row[2] ];
