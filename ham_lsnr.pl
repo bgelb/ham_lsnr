@@ -14,16 +14,15 @@ use DBI;
 use Switch;
 
 # Database connection parameters
-my $data_source      = "dbi:Pg:host=127.0.0.1;dbname=ra";
+my $data_source      = "dbi:Pg:host=192.168.5.248;port=5432;dbname=xact";
 my $data_source_user = "radude";
 my $data_source_pass = "raR0cks";
 
 # Port to listen for incoming TCP connections
 my $incoming_tcp_port = 7890;
 
-# Event ID (26 = MCM)
-#my $event_id = 793;
-my $event_id = 1332;
+# Event ID
+my $event_id = 1896;
 
 # to be populated from DB
 my @subevent_ids;
@@ -39,7 +38,10 @@ sub is_time_valid {
 }
 
 sub time_add_sep {
-    return ($_[0] =~ s/^([0-9]{1,2})([0-5][0-9])/$1:$2/g);
+    return $_[0];
+
+    # as of 2017, no separator is desired anymore
+    # return ($_[0] =~ s/^([0-9]{1,2})([0-5][0-9])/$1:$2/g);
 }
 
 sub get_athlete_id { # dbh, bib, athlete_id, first_name, err_str
